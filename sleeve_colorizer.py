@@ -11,6 +11,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	# Add an argument
 	parser.add_argument('--showColorways', type=str, required=False, help="Whether to output colorway images too")
+	parser.add_argument('--useGamePixels', type=str, required=False, help="Whether to use the 3 pixels the game uses")
 	# Parse the argument
 	args = parser.parse_args()
 
@@ -25,6 +26,17 @@ def main():
 	else:
 		print("Invalid input, defaulting to no colorways")
 
+	gamePixelMode = False
+	# Parse the input manually to handle case-sensitivity
+	if args.useGamePixels is None:
+		gamePixelMode = False
+	elif args.useGamePixels == "False" or args.useGamePixels == "false":
+		gamePixelMode = False
+	elif args.useGamePixels == "True" or args.useGamePixels == "true":
+		gamePixelMode = True
+	else:
+		print("Invalid input, defaulting to pulling from all colors in shirt")
+
 	# Get all images in shirts folder
 	folderPath = Path(shirtsFoldername)
 	filelist = folderPath.glob("**/*.png")
@@ -34,30 +46,42 @@ def main():
 		print("Processing " + str(file))
 		originalImage = Image.open(Path(file))
 
-		# Grab the colors and sort them by sum of RGB values
-		colorList = originalImage.getcolors()
-		pixelsOnly = [i[1] for i in colorList]
-		sortedPixels = sorted(pixelsOnly, key=lambda x: x[0]+x[1]+x[2])
+		if gamePixelMode:
+			originalImage = originalImage.convert('RGB')
+			color1 = originalImage.getpixel((0,4))
+			color2 = originalImage.getpixel((0,3))
+			color3 = originalImage.getpixel((0,2))
+		else:
+			# Grab the colors and sort them by sum of RGB values
+			colorList = originalImage.getcolors()
+			pixelsOnly = [i[1] for i in colorList]
+			sortedPixels = sorted(pixelsOnly, key=lambda x: x[0]+x[1]+x[2])
 
-		# Remove transparent pixel
-		if (0, 0, 0, 0) in sortedPixels:
-			sortedPixels.remove((0, 0, 0, 0))
+			# Remove transparent pixel
+			if (0, 0, 0, 0) in sortedPixels:
+				sortedPixels.remove((0, 0, 0, 0))
 
-		# Save a colorway image if desired
-		if showColorways:
-			# Convert the pixels into an array using numpy
-			npPix = [(i[0],i[1],i[2]) for i in sortedPixels]
-			npPix = [npPix]
-			npPix = np.array(npPix, dtype=np.uint8)
+			# Save a colorway image if desired
+			if showColorways:
+				# Convert the pixels into an array using numpy
+				npPix = [(i[0],i[1],i[2]) for i in sortedPixels]
+				npPix = [npPix]
+				npPix = np.array(npPix, dtype=np.uint8)
 
-			# Use PIL to create an image from the new array of pixels
-			new_image = Image.fromarray(npPix, mode="RGB")
-			new_image.save(file.parent.joinpath('colorway.png'))
+				# Use PIL to create an image from the new array of pixels
+				new_image = Image.fromarray(npPix, mode="RGB")
+				new_image.save(file.parent.joinpath('colorway.png'))
 
-		# Grab the first, middle, and last colors
-		color1 = sortedPixels[0]
-		color2 = sortedPixels[len(sortedPixels)//2]
-		color3 = sortedPixels[-1]
+			# Grab the first, middle, and last colors
+			color1 = sortedPixels[0]
+			color2 = sortedPixels[len(sortedPixels)//2]
+			color3 = sortedPixels[-1]
+
+		print(color1)
+		print(color2)
+		print(color3)
+
+		# Save the pixels
 		fileDict = {}
 		fileDict["SleeveColors"] = [[color1[0],color1[1],color1[2]],[color2[0],color2[1],color2[2]],[color3[0],color3[1],color3[2]]]
 		
